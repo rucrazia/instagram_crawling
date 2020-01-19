@@ -35,7 +35,7 @@ class InstagramCrawler:
     def __init__(self):
         pass
     #'C:\\Users\\rucrazia\\Google 드라이브\\개발\\크롤링\\chromedriver'
-
+    #'C:\\Users\\rucra\\Documents\\크롤링\\chromedriver'
 
     def setting(self, driverRoot):
         mobile_emulation = {"deviceName": "Nexus 5"}
@@ -95,52 +95,36 @@ class InstagramCrawler:
         data.to_csv('insta.txt', mode='w', encoding='utf-8', header=None)
 
 
-    def get_youtuberVideo(self, soup):
-
-        freeze_support()
-
-        print('### jinho021712@gmail.com ### Instacrawler Ver 0.1')
-
-        print("pass")
-        print("#크롤링 속도는 컴퓨터 사양에 따라 1.0 ~ 2.5 값으로 설정해주세요.")
-
-        scrolltime = float(input("크롤링 속도를 입력하세요 : "))
-        crawlnum = int(input("가져올 데이터의 수를 입력하세요 : "))
-        search = input("검색어를 입력하세요 : ")
-        search = urllib.parse.quote(search)
-        url = 'https://www.instagram.com/explore/tags/' + str(search) + '/'
-        driver = webdriver.Chrome('chromedriver.exe')
-
+    def get_image_list(self, soup):
         driver.get(url)
         sleep(5)
 
-        SCROLL_PAUSE_TIME = scrolltime
+        SCROLL_PAUSE_TIME = 1.0
         reallink = []
 
         while True:
             pageString = driver.page_source
             bsObj = BeautifulSoup(pageString, "lxml")
 
+            #date_field.find_next_sibling('dd').text.strip()
             for link1 in bsObj.find_all(name="div", attrs={"class": "Nnq7C weEfm"}):
-                title = link1.select('a')[0]
-                real = title.attrs['href']
-                reallink.append(real)
-                title = link1.select('a')[1]
-                real = title.attrs['href']
-                reallink.append(real)
-                title = link1.select('a')[2]
-                real = title.attrs['href']
-                reallink.append(real)
+
+                col_len = len(link1.find_all('a'))
+                print(col_len)
+                for i in range(col_len):
+                    title = link1.select('a')[i]
+                    real = title.attrs['href']
+                    reallink.append(real) #사진들 link 가져오기
+                    print(title)
 
             last_height = driver.execute_script("return document.body.scrollHeight")
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            sleep(SCROLL_PAUSE_TIME) #Scroll
+            sleep(SCROLL_PAUSE_TIME)
             new_height = driver.execute_script("return document.body.scrollHeight")
             if new_height == last_height:
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 sleep(SCROLL_PAUSE_TIME)
                 new_height = driver.execute_script("return document.body.scrollHeight")
-
                 if new_height == last_height:
                     break
 
@@ -148,19 +132,70 @@ class InstagramCrawler:
                     last_height = new_height
                     continue
 
+        csvtext = []
+
         reallinknum = len(reallink)
-        print("총" + str(reallinknum) + "개의 데이터를 받아왔습니다.")
+        # reallinknum = len(reallink)
 
-        p = Pool(5)
-        p.map(f, reallink)
-        p.close()
-        p.join()
-        print("저장완료")
+        print("총" + str(reallinknum) + "개의 데이터.")
 
+        return reallink
 
+    def get_keywords(self, soup):
 
+        try:
+            for i in range(0, reallinknum):
 
-        return youtube_video_list
+                csvtext.append([])
+                req = Request('https://www.instagram.com/p' + reallink[i], headers={'User-Agent': 'Mozilla/5.0'})
+
+                webpage = urlopen(req).read()
+                soup = BeautifulSoup(webpage, "lxml", from_encoding='utf-8')
+                soup1 = soup.find("meta", attrs={"property": "og:description"})
+
+                reallink1 = soup1['content']
+                reallink1 = reallink1[reallink1.find("@") + 1:reallink1.find(")")]
+                reallink1 = reallink1[:20]
+                if reallink1 == '':
+                    reallink1 = 'Null'
+                csvtext[i].append(reallink1)
+
+                for reallink2 in soup.find_all("meta", attrs={"property": "instapp:hashtags"}):
+                    reallink2 = reallink2['content']
+                    csvtext[i].append(reallink2)
+
+                img_names = soup.find_all("img")  # 이미지 태그
+                print(img_names)
+                for img in img_names:
+                    ## img가 src 안에 있기 때문에 get_text가 아닌 src를 가져온다
+                    print(img['src'])
+                img_src = img.get("src")  # 이미지 경로
+                # img_url = img_src  # 다운로드를 위해 base_url과 합침
+                # img_name = str(i+1)+"번째 사진"  # 이미지 src에서 / 없애기
+                # urllib.request.urlretrieve(img_url, "./img/" + img_name)
+
+                print(str(i + 1) + "개의 데이터 받아오는 중.")
+                print(csvtext)
+                data = pd.DataFrame(csvtext)
+                data.to_csv('insta.txt', encoding='utf-8')
+
+        except:
+            print("오류발생" + str(i + 1) + "개의 데이터를 저장합니다.")
+
+            data = pd.DataFrame(csvtext)
+            data.to_csv('insta.txt', encoding='utf-8')
+
+        return keywords_list
+
+    def get_uploadTime(self):
+        pass
+
+    def get_text(self):
+        pass
+
+    def get_date(self):
+        pass
+
 
 
     def make_csvFile(self, data):

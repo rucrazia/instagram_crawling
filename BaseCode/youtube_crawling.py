@@ -8,7 +8,9 @@ import pandas as pd
 search = input("검색어를 입력하세요 : ")
 search = urllib.parse.quote(search)
 url = 'https://www.instagram.com/explore/tags/' + str(search) + '/'
-driver = webdriver.Chrome('C:\\Users\\rucrazia\\Google 드라이브\\개발\\크롤링\\chromedriver')
+#driver = webdriver.Chrome('C:\\Users\\rucrazia\\Google 드라이브\\개발\\크롤링\\chromedriver')
+driver = webdriver.Chrome('C:\\Users\\rucra\\Documents\\크롤링\\chromedriver')
+
 
 driver.get(url)
 sleep(5)
@@ -16,9 +18,15 @@ sleep(5)
 SCROLL_PAUSE_TIME = 1.0
 reallink = []
 
+main_iter = 0
 while True:
+    main_iter += 1
     pageString = driver.page_source
     bsObj = BeautifulSoup(pageString, "lxml")
+
+    #bsObj = bsObj.find('h2', class_='yQ0j1', text='최근 사진')
+
+    #print(bsObj.text)
 
     for link1 in bsObj.find_all(name="div", attrs={"class": "Nnq7C weEfm"}):
 
@@ -29,15 +37,22 @@ while True:
             real = title.attrs['href']
             reallink.append(real)
             print(title)
+        break
 
     last_height = driver.execute_script("return document.body.scrollHeight")
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     sleep(SCROLL_PAUSE_TIME)
     new_height = driver.execute_script("return document.body.scrollHeight")
+
+    print(main_iter)
+    if main_iter == 10:
+        break
+
     if new_height == last_height:
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         sleep(SCROLL_PAUSE_TIME)
         new_height = driver.execute_script("return document.body.scrollHeight")
+
         if new_height == last_height:
             break
 
@@ -51,6 +66,7 @@ reallinknum = len(reallink)
 #reallinknum = len(reallink)
 
 print("총" + str(reallinknum) + "개의 데이터.")
+
 try:
     for i in range(0, reallinknum):
 
@@ -76,10 +92,10 @@ try:
 
 
         img_names = soup.find_all("img")  # 이미지 태그
-        print(img_names)
-        for img in img_names:
-            ## img가 src 안에 있기 때문에 get_text가 아닌 src를 가져온다
-            print(img['src'])
+        #print(img_names)
+        #for img in img_names:
+            # img가 src 안에 있기 때문에 get_text가 아닌 src를 가져온다
+            #print(img['src'])
         img_src = img.get("src")  # 이미지 경로
         #img_url = img_src  # 다운로드를 위해 base_url과 합침
         #img_name = str(i+1)+"번째 사진"  # 이미지 src에서 / 없애기
@@ -97,5 +113,5 @@ except:
 
     data = pd.DataFrame(csvtext)
     data.to_csv('insta.txt', encoding='utf-8')
-print("저장성공")   
+
 
