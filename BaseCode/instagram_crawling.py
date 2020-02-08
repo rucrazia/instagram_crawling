@@ -5,16 +5,26 @@ from urllib.request import Request, urlopen, urlretrieve
 from time import sleep
 import pandas as pd
 import json
-import datetime
-from urllib.parse import quote
 from pathlib import Path
 from selenium.common.exceptions import NoSuchElementException
 
 
-class InstagramCrawler(base_root, driver_root):
+class InstagramCrawler():
     csvtext = []
     keyword = ''
 
+
+    base_root_k = 'C:\\Users\\user\\Documents\\project\\크롤링\\image\\'
+    base_root_pc = 'C:\\Users\\rucra\\PycharmProjects\\instagram_crawling\\'
+    base_root_note = '..\\'
+
+    driver_root_k = 'C:\\Users\\user\\Documents\\project\\Crawling\\chromedriver'
+    driver_root_pc = 'C:\\Users\\rucra\\Google 드라이브\\개발\\크롤링\\chromedriver'
+    driver_root_note = 'C:\\Users\\rucrazia\\Google 드라이브\\개발\\크롤링\\chromedriver'
+
+
+    base_root = base_root_pc
+    driver_root = driver_root_pc
     def get_origin_csv_id_list(self, origin_csv):
         origin_id_list = origin_csv.iloc[-12:]
         origin_id_list = origin_id_list['ID']
@@ -47,41 +57,55 @@ class InstagramCrawler(base_root, driver_root):
             reallink2 = reallink2['content'].replace("amp;", "")
             self.csvtext[iterate_count].append(reallink2)
             # urllib.request.urlretrieve(reallink2, "../image/"+keyword+str(iterate_count)+".jpg")
-            urllib.request.urlretrieve(reallink2, base_root + "image/" + keyword + str(
-                iterate_count) + ".jpg")
 
-    def get_added_image_recog(driver, iterate_count, keyword):
+            urllib.request.urlretrieve(reallink2, self.base_root + "image\\" + keyword + str(
+                iterate_count) + "_0.jpg")
+
+    def get_added_image_recog(self, url, driver, iterate_count, keyword):
 
         img_urls = []
         img_recogs = []
         add_img_counter = 1
-        while (1):
+        img_button_flag = False
+
+        print(url)
+        driver.get(url)
+
+        try:
+            driver.find_element_by_class_name("coreSpriteRightChevron").click()
+        except NoSuchElementException:
+            img_button_flag = True
+
+        while (img_button_flag == False):
+            print(iterate_count)
             sleep(1)
+
+
             pageString = driver.page_source
             soup = BeautifulSoup(pageString, "lxml")
+
+            imgs = soup.select('img')[1]
+            print(imgs['alt'])
             try:
-                imgs = soup.select('img')[1]
                 imgs = imgs.attrs['src']
+                urllib.request.urlretrieve(imgs,
+                                       self.base_root + "image\\" + keyword + str(iterate_count) + "_" + str(add_img_counter) + ".jpg")
                 img_urls.append(imgs)
-                img_recogs.append(imgs['alt'])
-                # urllib.request.urlretrieve(reallink2, "../image/"+keyword+str(iterate_count)+".jpg")
-
-                urllib.request.urlretrieve(reallink2,
-                                           base_root + "image/" + keyword + str(
-                                               iterate_count) + "_" + add_img_counter + ".jpg")
-                add_img_counter += 1
-
-                try:
-                    driver.find_element_by_class_name("coreSpriteRightChevron").click()
-
-                except NoSuchElementException:
-                    break
-
             except:
-                try:
-                    driver.find_element_by_class_name("coreSpriteRightChevron").click()
-                except NoSuchElementException:
-                    break
+                img_urls.append('non_add_url_R')
+
+
+            try:
+                img_recogs.append(imgs['alt'])
+                print(imgs['alt'])
+            except:
+                img_recogs.append('non_add_recog_R')
+
+            add_img_counter += 1
+            try:
+                driver.find_element_by_class_name("coreSpriteRightChevron").click()
+            except NoSuchElementException:
+                img_button_flag = True
 
         return [img_urls, img_recogs]
 
@@ -115,27 +139,25 @@ class InstagramCrawler(base_root, driver_root):
                 # 봇으로 인해 정지되었을 때 req에다 header를 넣어주어 user agent를 입력하면 봇으로 인식 못한다.
                 ## https://m.blog.naver.com/PostView.nhn?blogId=kiddwannabe&logNo=221185808375&proxyReferer=https%3A%2F%2Fwww.google.com%2F
                 #            req = Request('https://www.instagram.com/p' + image_link_list[i], headers={'User-Agent': 'Mozilla/5.0'})
-
                 req = Request('https://www.instagram.com/p' + image_link_list[i], headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36'})
-
                 # yourstring = yourstring.encode('ascii', 'ignore').decode('ascii')
                 # req = Request('https://www.instagram.com/p/p/B7gFuNrBEvA/', headers={'User-Agent': 'Mozilla/5.0'})
+                url = 'https://www.instagram.com/p' + image_link_list[i]
 
                 webpage = urlopen(req).read()
-
                 soup = BeautifulSoup(webpage, "lxml", from_encoding='utf-8')
-
                 self.csvtext[i].append(self.keyword)
                 self.get_content_title(soup, i)
                 self.get_content_upload_date(soup, i)
                 self.get_content_hashtag(soup, i)
                 self.csvtext[i].append(image_recog_list[i])
-                self.get_contents_image_jpg(soup, self.keyword, i)
-                image_url_recog = self.get_added_image_recog()
-                self.cssvtext[i].appned(image_url_recog[0])  # additional image_url
-                self.cssvtext[i].appned(image_url_recog[1])  # additional image recog
 
+                self.get_contents_image_jpg(soup, self.keyword, i)
+                image_url_recog = self.get_added_image_recog(url, driver, i, self.keyword)
+
+                self.csvtext[i].append(image_url_recog[0])  # additional image_url
+                self.csvtext[i].append(image_url_recog[1])  # additional image recog
                 print(str(i + 1) + "개의 데이터 받아오는 중.")
 
         except:
@@ -162,7 +184,6 @@ class InstagramCrawler(base_root, driver_root):
         main_iter = 0
 
         while True:
-            main_iter += 1
             pageString = driver.page_source
             bsObj = BeautifulSoup(pageString, "lxml")
             origin_flag = False
@@ -180,6 +201,8 @@ class InstagramCrawler(base_root, driver_root):
                                 img_recog = title.find('img', alt=True)['alt']
                                 reallink.append(real)
                                 reallink_img_recog.append(img_recog)
+                                main_iter += 1
+
                             except:
                                 pass
 
@@ -187,7 +210,7 @@ class InstagramCrawler(base_root, driver_root):
                 print("return")
                 break
 
-            if main_iter == 4:
+            if main_iter > 1000:
                 break
 
             last_height = driver.execute_script("return document.body.scrollHeight")
@@ -213,7 +236,6 @@ class InstagramCrawler(base_root, driver_root):
         search = urllib.parse.quote(search)
         url = 'https://www.instagram.com/explore/tags/' + str(search) + '/'
         driver = webdriver.Chrome(self.driver_root)
-        base_root =
         driver.get(url)
         sleep(2)
 
@@ -228,7 +250,7 @@ class InstagramCrawler(base_root, driver_root):
         else:
             origin_csv = pd.DataFrame(
                 columns=['INDEX', 'ID', 'KEYWORD', 'TITLE', 'UPLOAD_DATE', 'HASHTAG', 'IMAGE_RECOG',
-                         'IMAGE_URL'])
+                         'IMAGE_URL','ADD_IMG_URL','ADD_IMG_RECOG'])
         origin_id_list = self.get_origin_csv_id_list(origin_csv)
 
         driver = self.init_get_driver(search)
@@ -240,15 +262,8 @@ if __name__ == "__main__":
     # execute only if run as a script
     search = input("검색어를 입력하세요 : ")
 
-    base_root_k = 'C:\\Users\\user\\Documents\\project\\크롤링\\image\\'
-    base_root_pc = 'C:\\Users\\rucra\\PycharmProjects\\instagram_crawling\\'
-    base_root_note = '..\\'
 
-    driver_root_k = 'C:\\Users\\user\\Documents\\project\\Crawling\\chromedriver'
-    driver_root_pc = 'C:\\Users\\rucra\\Google 드라이브\\개발\\크롤링\\chromedriver'
-    driver_root_note = 'C:\\Users\\rucrazia\\Google 드라이브\\개발\\크롤링\\chromedriver'
-
-    instagam_crawler_class = InstagramCrawler(base_root_pc, driver_root_pc)
+    instagam_crawler_class = InstagramCrawler()
     instagam_crawler_class.main(search)
 
 
