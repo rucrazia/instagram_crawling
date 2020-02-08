@@ -8,9 +8,10 @@ import json
 import datetime
 from urllib.parse import quote
 from pathlib import Path
+from selenium.common.exceptions import NoSuchElementException
 
 
-class InstagramCrawler():
+class InstagramCrawler(base_root, driver_root):
     csvtext = []
     keyword = ''
 
@@ -30,13 +31,6 @@ class InstagramCrawler():
                 self.csvtext[iterate_count].append(title)
 
     def get_content_upload_date(self, soup, iterate_count):
-        # script = soup.find('script')
-        # page_json = script.text.split(' = ', 1)[1].rstrip(';')
-        # data = json.loads(page_json)
-        # upload_date = data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['edge_media_to_tagged_user']['edges'][0]['node']['user']['id']
-        # upload_date = datetime.datetime.fromtimestamp(timestamp/1000)
-        # print(upload_date)
-
         upload_date = None
         for reallink3 in soup.find_all("script", type='application/ld+json'):
             data = json.loads(reallink3.text)
@@ -48,40 +42,52 @@ class InstagramCrawler():
             self.csvtext[iterate_count].append(str(upload_date))
 
     def get_contents_image_jpg(self, soup, keyword, iterate_count):
+
         for reallink2 in soup.find_all("meta", attrs={"property": "og:image"}):
             reallink2 = reallink2['content'].replace("amp;", "")
             self.csvtext[iterate_count].append(reallink2)
             # urllib.request.urlretrieve(reallink2, "../image/"+keyword+str(iterate_count)+".jpg")
-            urllib.request.urlretrieve(reallink2, "C:\\Users\\user\\Documents\\project\\크롤링\\image\\" + keyword + str(
+            urllib.request.urlretrieve(reallink2, base_root + "image/" + keyword + str(
                 iterate_count) + ".jpg")
 
-    '''
-    def get_content_description(self, soup, iterate_count):   
-        soup1 = soup.find("meta", attrs={"property": "og:description"})
+    def get_added_image_recog(driver, iterate_count, keyword):
 
-        reallink1 = soup1['content']
-        reallink1 = reallink1[reallink1.find("@") + 1:reallink1.find(")")]
-        reallink1 = reallink1[:20]
+        img_urls = []
+        img_recogs = []
+        add_img_counter = 1
+        while (1):
+            sleep(1)
+            pageString = driver.page_source
+            soup = BeautifulSoup(pageString, "lxml")
+            try:
+                imgs = soup.select('img')[1]
+                imgs = imgs.attrs['src']
+                img_urls.append(imgs)
+                img_recogs.append(imgs['alt'])
+                # urllib.request.urlretrieve(reallink2, "../image/"+keyword+str(iterate_count)+".jpg")
 
-        print(reallink1)
-        if reallink1 == '':
-            reallink1 = 'non_description_R'
-        self.csvtext[iterate_count].append(reallink1)
-    '''
+                urllib.request.urlretrieve(reallink2,
+                                           base_root + "image/" + keyword + str(
+                                               iterate_count) + "_" + add_img_counter + ".jpg")
+                add_img_counter += 1
+
+                try:
+                    driver.find_element_by_class_name("coreSpriteRightChevron").click()
+
+                except NoSuchElementException:
+                    break
+
+            except:
+                try:
+                    driver.find_element_by_class_name("coreSpriteRightChevron").click()
+                except NoSuchElementException:
+                    break
+
+        return [img_urls, img_recogs]
 
     def get_content_hashtag(self, soup, iterate_count):
 
         hashtag_list = []
-        '''
-        script = soup.find('script', text=lambda t: \
-                           t.startswith('window._sharedData'))
-        page_json = script.text.split(' = ', 1)[1].rstrip(';')
-        data = json.loads(page_json)
-        print(data['edge_media_to_tagged_user'])
-        '''
-        # add_comment_hashtag = data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['aption_is_edited']['edges'][0]['node']['user']['id']
-
-        # if add_comment_hashtag ==
 
         for reallink2 in soup.find_all("meta", attrs={"property": "instapp:hashtags"}):
             reallink2 = reallink2['content']
@@ -110,7 +116,7 @@ class InstagramCrawler():
                 ## https://m.blog.naver.com/PostView.nhn?blogId=kiddwannabe&logNo=221185808375&proxyReferer=https%3A%2F%2Fwww.google.com%2F
                 #            req = Request('https://www.instagram.com/p' + image_link_list[i], headers={'User-Agent': 'Mozilla/5.0'})
 
-                req = Request('https://www.instagram.com/p' + image_link_list[(i * 2)], headers={
+                req = Request('https://www.instagram.com/p' + image_link_list[i], headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36'})
 
                 # yourstring = yourstring.encode('ascii', 'ignore').decode('ascii')
@@ -126,12 +132,11 @@ class InstagramCrawler():
                 self.get_content_hashtag(soup, i)
                 self.csvtext[i].append(image_recog_list[i])
                 self.get_contents_image_jpg(soup, self.keyword, i)
+                image_url_recog = self.get_added_image_recog()
+                self.cssvtext[i].appned(image_url_recog[0])  # additional image_url
+                self.cssvtext[i].appned(image_url_recog[1])  # additional image recog
 
-                # https://stackoverflow.com/questions/26192727/extract-content-of-script-with-beautifulsoup
                 print(str(i + 1) + "개의 데이터 받아오는 중.")
-                # print(self.csvtext)
-
-                # print(self.csvtext)
 
         except:
 
@@ -207,9 +212,8 @@ class InstagramCrawler():
         self.keyword = search
         search = urllib.parse.quote(search)
         url = 'https://www.instagram.com/explore/tags/' + str(search) + '/'
-        # driver = webdriver.Chrome('C:\\Users\\rucrazia\\Google 드라이브\\개발\\크롤링\\chromedriver')
-        driver = webdriver.Chrome('C:\\Users\\user\\Documents\\project\\Crawling\\chromedriver')
-
+        driver = webdriver.Chrome(self.driver_root)
+        base_root =
         driver.get(url)
         sleep(2)
 
@@ -236,7 +240,15 @@ if __name__ == "__main__":
     # execute only if run as a script
     search = input("검색어를 입력하세요 : ")
 
-    instagam_crawler_class = InstagramCrawler()
+    base_root_k = 'C:\\Users\\user\\Documents\\project\\크롤링\\image\\'
+    base_root_pc = 'C:\\Users\\rucra\\PycharmProjects\\instagram_crawling\\'
+    base_root_note = '..\\'
+
+    driver_root_k = 'C:\\Users\\user\\Documents\\project\\Crawling\\chromedriver'
+    driver_root_pc = 'C:\\Users\\rucra\\Google 드라이브\\개발\\크롤링\\chromedriver'
+    driver_root_note = 'C:\\Users\\rucrazia\\Google 드라이브\\개발\\크롤링\\chromedriver'
+
+    instagam_crawler_class = InstagramCrawler(base_root_pc, driver_root_pc)
     instagam_crawler_class.main(search)
 
 
