@@ -68,7 +68,6 @@ class InstagramCrawler():
         add_img_counter = 1
         img_button_flag = False
 
-        print(url)
         driver.get(url)
 
         try:
@@ -77,29 +76,33 @@ class InstagramCrawler():
             img_button_flag = True
 
         while (img_button_flag == False):
-            print(iterate_count)
-            sleep(1)
+            sleep(0.1)
 
 
             pageString = driver.page_source
             soup = BeautifulSoup(pageString, "lxml")
 
             imgs = soup.select('img')[1]
-            print(imgs['alt'])
+
             try:
-                imgs = imgs.attrs['src']
-                urllib.request.urlretrieve(imgs,
+
+                img = imgs.attrs['src']
+                urllib.request.urlretrieve(img,
                                        self.base_root + "image\\" + keyword + str(iterate_count) + "_" + str(add_img_counter) + ".jpg")
-                img_urls.append(imgs)
-            except:
-                img_urls.append('non_add_url_R')
-
-
-            try:
-                img_recogs.append(imgs['alt'])
+                img_urls.append(img)
                 print(imgs['alt'])
+
+                if imgs['alt'] == '':
+                    img_recogs.append('non_add_img_recog_R')
+
+                else:
+                    img_recogs.append(imgs['alt'])
+
+                print(img_recogs)
+
             except:
-                img_recogs.append('non_add_recog_R')
+                pass
+
 
             add_img_counter += 1
             try:
@@ -118,7 +121,7 @@ class InstagramCrawler():
             hashtag_list.append(reallink2)
 
         if len(hashtag_list) == 0:
-            self.csvtext[iterate_count].append(['None_Hashtag_R'])
+            self.csvtext[iterate_count].append(['non_hashtag_R'])
         else:
             self.csvtext[iterate_count].append(hashtag_list)
 
@@ -155,7 +158,7 @@ class InstagramCrawler():
 
                 self.get_contents_image_jpg(soup, self.keyword, i)
                 image_url_recog = self.get_added_image_recog(url, driver, i, self.keyword)
-
+                print(image_url_recog)
                 self.csvtext[i].append(image_url_recog[0])  # additional image_url
                 self.csvtext[i].append(image_url_recog[1])  # additional image recog
                 print(str(i + 1) + "개의 데이터 받아오는 중.")
@@ -164,12 +167,13 @@ class InstagramCrawler():
 
             print("오류발생" + str(i + 1) + "번째")
 
-            # data = pd.DataFrame(self.csvtext, columns=['NUM','ID','KEYWORD', 'TITLE', 'UPLOAD_DATE','DESCRIPTION','HASHTAG','IMAGE_URL'])
-            # data.to_csv('insta.csv', encoding='utf-8', sep='\t', index=False)
+            data = pd.DataFrame(self.csvtext, columns=['INDEX', 'ID', 'KEYWORD', 'TITLE', 'UPLOAD_DATE', 'HASHTAG', 'IMAGE_RECOG',
+                                         'IMAGE_URL','ADD_IMG_URL','ADD_IMG_RECOG'])
+            data.to_csv('insta.csv', encoding='utf-8', sep='\t', index=False)
 
         data_csv = pd.DataFrame(self.csvtext,
                                 columns=['INDEX', 'ID', 'KEYWORD', 'TITLE', 'UPLOAD_DATE', 'HASHTAG', 'IMAGE_RECOG',
-                                         'IMAGE_URL'])
+                                         'IMAGE_URL','ADD_IMG_URL','ADD_IMG_RECOG'])
 
         data = pd.concat([origin_csv, data_csv])
 
@@ -177,7 +181,7 @@ class InstagramCrawler():
 
     def get_images_list(self, driver, origin_id_list):
 
-        SCROLL_PAUSE_TIME = 1.0
+        SCROLL_PAUSE_TIME = 4.0
         image_list = []
         reallink = []
         reallink_img_recog = []
@@ -232,10 +236,14 @@ class InstagramCrawler():
         return image_list
 
     def init_get_driver(self, search):
+        options = webdriver.ChromeOptions()
+        options.add_argument('headless')
+
+
         self.keyword = search
         search = urllib.parse.quote(search)
         url = 'https://www.instagram.com/explore/tags/' + str(search) + '/'
-        driver = webdriver.Chrome(self.driver_root)
+        driver = webdriver.Chrome(self.driver_root, chrome_options=options)
         driver.get(url)
         sleep(2)
 
